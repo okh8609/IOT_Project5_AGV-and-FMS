@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta http-equiv="Access-Control-Allow-Origin" content="*">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"
+    type="text/css">
+  <link rel="stylesheet" href="theme.css" type="text/css">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC&amp;display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <nav class="navbar navbar-dark bg-dark">
+    <div class="container">
+      <a class="navbar-brand" href="#">
+        <i class="fa d-inline fa-lg fa-circle"></i>
+        <b>&nbsp;Automated Guided Vehicle</b>
+      </a>
+    </div>
+  </nav>
+  <div class="py-5 text-center">
+    <div class="container">
+      <div class="row">
+        <div class="text-center mx-auto col-lg-8">
+          <div class="card bg-light mb-3">
+            <div class="card-header">第一組</div>
+            <div class="card-body">
+              <h5 class="card-title">組員</h5>
+              <p class="card-text">電機系 B07901088 陳秉嘉</p>
+              <p class="card-text">資工所 R09922072 歐鎧豪</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p>&nbsp;</p>
+      <div class="row">
+        <div class="text-center mx-auto col-lg-8">
+          <form class="">
+            <div class="form-group">
+              <h4>Device IP Address</h4>
+              <input type="text" id="ip" class="form-control" placeholder="Enter Device IP Address">
+            </div>
+          </form>
+        </div>
+      </div>
+      <p>&nbsp;</p>
+      <p>&nbsp;</p>
+      <div class="row">
+        <div class="text-center mx-auto col-lg-8">
+          <!-- <ul class="nav nav-tabs"> -->
+          <ul class="nav nav-pills">
+            <li class="nav-item">
+              <a href="" id="R" class="active nav-link" data-toggle="pill" data-target="#tabone">紅色軌道</a>
+            </li>
+            <li class="nav-item">
+              <a href="" id="G" class="nav-link" data-toggle="pill" data-target="#tabtwo">綠色軌道</a>
+            </li>
+            <li class="nav-item">
+              <a href="" id="B" class="nav-link" data-toggle="pill" data-target="#tabthree">藍色軌道</a>
+            </li>
+          </ul>
+          <div class="tab-content mt-2">
+            <div class="tab-pane fade show active" id="tabone" role="tabpanel">
+              <!-- <p class="">ONE</p> -->
+              <!-- <img class="img-fluid d-block" src="https://static.pingendo.com/cover-bubble-light.svg"> -->
+              <canvas id="cv1" class="img-fluid d-block" width="1600" height="900"></canvas>
+            </div>
+            <div class="tab-pane fade" id="tabtwo" role="tabpanel">
+              <canvas id="cv2" class="img-fluid d-block" width="1600" height="900"></canvas>
+            </div>
+            <div class="tab-pane fade" id="tabthree" role="tabpanel">
+              <canvas id="cv3" class="img-fluid d-block" width="1600" height="900"></canvas>
+            </div>
+          </div>
+          <p>&nbsp;</p>
+          <a class="btn btn-outline-dark" id="go_btn">&nbsp;&nbsp;GO!&nbsp;&nbsp;</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="py-3 bg-dark text-light">
+    <div class="container">
+      <div class="row">
+        <div class="col-md-12 text-center">
+          <p class="mb-0">© 2021 NTU. All rights reserved</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"
+    integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49"
+    crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+    integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
+    crossorigin="anonymous"></script>
+  <script>
+    function GetURL() {
+      var ip = $('#ip').val();
+      url = 'http://' + ip + ':8080'
+      return url
+    }
+
+    function getMousePos(canvas, evt) {
+      var rect = canvas.getBoundingClientRect(), // abs. size of element
+        scaleX = canvas.width / rect.width,    // relationship bitmap vs. element for X
+        scaleY = canvas.height / rect.height;  // relationship bitmap vs. element for Y
+
+      return {
+        x: (evt.clientX - rect.left) * scaleX,   // scale mouse coordinates after they have
+        y: (evt.clientY - rect.top) * scaleY     // been adjusted to be relative to element
+      }
+    }
+
+    var checkpoint = 1  // {1, 2, 3}
+    var track = 'R' // {R, G, B}
+    const checkpoint_size = 50
+    const padding = 30
+
+    // canvas 1 (紅色軌道)
+    var cv1 = document.getElementById("cv1");
+    var cv1_ctx = cv1.getContext("2d");
+    // canvas 2 (綠色軌道)
+    var cv2 = document.getElementById("cv2");
+    var cv2_ctx = cv2.getContext("2d");
+    // canvas 3 (藍色軌道)
+    var cv3 = document.getElementById("cv3");
+    var cv3_ctx = cv3.getContext("2d");
+
+    function drawCheckpoint(canvas, cv_ctx, checkpoint_size) {
+      // 清除中繼站的顏色
+      cv_ctx.fillStyle = "#CCCCCC";
+      cv_ctx.fillRect(canvas.width / 4 - checkpoint_size, canvas.height / 2 - checkpoint_size, 100, 100);
+      cv_ctx.fillRect(canvas.width / 2 - checkpoint_size, canvas.height / 2 - checkpoint_size, 100, 100);
+      cv_ctx.fillRect(canvas.width / 4 * 3 - checkpoint_size, canvas.height / 2 - checkpoint_size, 100, 100);
+      // 點選到的中繼站上色
+      cv_ctx.fillStyle = "#3A4D64";
+      cv_ctx.fillRect(canvas.width / 4 * checkpoint - checkpoint_size, canvas.height / 2 - checkpoint_size, 100, 100);
+    }
+
+    function drawMap() {
+      const trackWidth_1 = 25
+      const trackWidth_2 = 50
+
+      // canvas 1 (紅色軌道)
+      cv1_ctx.clearRect(0, 0, cv1.width, cv1.height);
+      {
+        // 畫出底圖的軌道
+        cv1_ctx.lineWidth = trackWidth_1;
+        cv1_ctx.strokeStyle = '#AAAAAA';
+        cv1_ctx.beginPath(); // 上
+        cv1_ctx.moveTo(0 + padding, 0 + padding);
+        cv1_ctx.lineTo(cv1.width - padding, 0 + padding);
+        cv1_ctx.stroke();
+        cv1_ctx.beginPath(); // 中
+        cv1_ctx.moveTo(0 + padding, cv1.height / 2);
+        cv1_ctx.lineTo(cv1.width - padding, cv1.height / 2);
+        cv1_ctx.stroke();
+        cv1_ctx.beginPath(); // 下
+        cv1_ctx.moveTo(0 + padding, cv1.height - padding);
+        cv1_ctx.lineTo(cv1.width - padding, cv1.height - padding);
+        cv1_ctx.stroke();
+        cv1_ctx.beginPath(); // 左
+        cv1_ctx.moveTo(0 + padding, 0 + padding - trackWidth_1 / 2);
+        cv1_ctx.lineTo(0 + padding, cv1.height - padding + trackWidth_1 / 2);
+        cv1_ctx.stroke();
+        cv1_ctx.beginPath(); // 中1
+        cv1_ctx.moveTo(cv1.width / 4, 0 + padding - trackWidth_1 / 2);
+        cv1_ctx.lineTo(cv1.width / 4, cv1.height - padding + trackWidth_1 / 2);
+        cv1_ctx.stroke();
+        cv1_ctx.beginPath(); // 中2
+        cv1_ctx.moveTo(cv1.width / 2, 0 + padding - trackWidth_1 / 2);
+        cv1_ctx.lineTo(cv1.width / 2, cv1.height - padding + trackWidth_1 / 2);
+        cv1_ctx.stroke();
+        cv1_ctx.beginPath(); // 中3
+        cv1_ctx.moveTo(cv1.width / 4 * 3, 0 + padding - trackWidth_1 / 2);
+        cv1_ctx.lineTo(cv1.width / 4 * 3, cv1.height - padding + trackWidth_1 / 2);
+        cv1_ctx.stroke();
+        cv1_ctx.beginPath(); // 右
+        cv1_ctx.moveTo(cv1.width - padding, 0 + padding - trackWidth_1 / 2);
+        cv1_ctx.lineTo(cv1.width - padding, cv1.height - padding + trackWidth_1 / 2);
+        cv1_ctx.stroke();
+
+        // 畫出顏色的軌道
+        cv1_ctx.lineWidth = trackWidth_2;
+        cv1_ctx.strokeStyle = '#FF0000';
+        cv1_ctx.beginPath(); //
+        cv1_ctx.moveTo(0 + padding - trackWidth_2 / 2, 0 + padding);
+        cv1_ctx.lineTo(cv1.width / 4 * 3, 0 + padding);
+        cv1_ctx.stroke();
+        cv1_ctx.beginPath(); // 中1
+        cv1_ctx.moveTo(cv1.width / 4, 0 + padding - trackWidth_2 / 2);
+        cv1_ctx.lineTo(cv1.width / 4, cv1.height - padding + trackWidth_2 / 2);
+        cv1_ctx.stroke();
+        cv1_ctx.beginPath(); //
+        cv1_ctx.moveTo(cv1.width / 4 - trackWidth_2 / 2, cv1.height - padding);
+        cv1_ctx.lineTo(cv1.width / 2, cv1.height - padding);
+        cv1_ctx.stroke();
+        cv1_ctx.beginPath(); //
+        cv1_ctx.moveTo(cv1.width / 4 - trackWidth_2 / 2, cv1.height / 2);
+        cv1_ctx.lineTo(cv1.width / 2, cv1.height / 2);
+        cv1_ctx.stroke();
+        cv1_ctx.beginPath(); //
+        cv1_ctx.moveTo(cv1.width / 4 * 3 - trackWidth_2 / 2, cv1.height / 2);
+        cv1_ctx.lineTo(cv1.width - padding, cv1.height / 2);
+        cv1_ctx.stroke();
+        cv1_ctx.beginPath(); //
+        cv1_ctx.moveTo(cv1.width / 2, cv1.height / 2 - trackWidth_2 / 2);
+        cv1_ctx.lineTo(cv1.width / 2, cv1.height - padding + trackWidth_2 / 2);
+        cv1_ctx.stroke();
+        cv1_ctx.beginPath(); //
+        cv1_ctx.moveTo(cv1.width / 4 * 3, 0 + padding - trackWidth_2 / 2);
+        cv1_ctx.lineTo(cv1.width / 4 * 3, cv1.height / 2);
+        cv1_ctx.stroke();
+        cv1_ctx.beginPath(); //
+        cv1_ctx.moveTo(cv1.width - padding, cv1.height / 2 - trackWidth_2 / 2);
+        cv1_ctx.lineTo(cv1.width - padding, cv1.height - padding + trackWidth_2 / 2);
+        cv1_ctx.stroke();
+      }
+      drawCheckpoint(cv1, cv1_ctx, checkpoint_size);
+      // canvas 2 (綠色軌道)
+      cv2_ctx.clearRect(0, 0, cv2.width, cv2.height);
+      {
+        // 畫出底圖的軌道
+        cv2_ctx.lineWidth = trackWidth_1;
+        cv2_ctx.strokeStyle = '#AAAAAA';
+        cv2_ctx.beginPath(); // 上
+        cv2_ctx.moveTo(0 + padding, 0 + padding);
+        cv2_ctx.lineTo(cv2.width - padding, 0 + padding);
+        cv2_ctx.stroke();
+        cv2_ctx.beginPath(); // 中
+        cv2_ctx.moveTo(0 + padding, cv2.height / 2);
+        cv2_ctx.lineTo(cv2.width - padding, cv2.height / 2);
+        cv2_ctx.stroke();
+        cv2_ctx.beginPath(); // 下
+        cv2_ctx.moveTo(0 + padding, cv2.height - padding);
+        cv2_ctx.lineTo(cv2.width - padding, cv2.height - padding);
+        cv2_ctx.stroke();
+        cv2_ctx.beginPath(); // 左
+        cv2_ctx.moveTo(0 + padding, 0 + padding - trackWidth_1 / 2);
+        cv2_ctx.lineTo(0 + padding, cv2.height - padding + trackWidth_1 / 2);
+        cv2_ctx.stroke();
+        cv2_ctx.beginPath(); // 中1
+        cv2_ctx.moveTo(cv2.width / 4, 0 + padding - trackWidth_1 / 2);
+        cv2_ctx.lineTo(cv2.width / 4, cv2.height - padding + trackWidth_1 / 2);
+        cv2_ctx.stroke();
+        cv2_ctx.beginPath(); // 中2
+        cv2_ctx.moveTo(cv2.width / 2, 0 + padding - trackWidth_1 / 2);
+        cv2_ctx.lineTo(cv2.width / 2, cv2.height - padding + trackWidth_1 / 2);
+        cv2_ctx.stroke();
+        cv2_ctx.beginPath(); // 中3
+        cv2_ctx.moveTo(cv2.width / 4 * 3, 0 + padding - trackWidth_1 / 2);
+        cv2_ctx.lineTo(cv2.width / 4 * 3, cv2.height - padding + trackWidth_1 / 2);
+        cv2_ctx.stroke();
+        cv2_ctx.beginPath(); // 右
+        cv2_ctx.moveTo(cv2.width - padding, 0 + padding - trackWidth_1 / 2);
+        cv2_ctx.lineTo(cv2.width - padding, cv2.height - padding + trackWidth_1 / 2);
+        cv2_ctx.stroke();
+
+        // 畫出顏色的軌道
+        cv2_ctx.lineWidth = trackWidth_2;
+        cv2_ctx.strokeStyle = '#00FF00';
+        cv2_ctx.beginPath(); //
+        cv2_ctx.moveTo(0 + padding, 0 + padding - trackWidth_2 / 2);
+        cv2_ctx.lineTo(0 + padding, cv2.height / 2 + trackWidth_2 / 2);
+        cv2_ctx.stroke();
+        cv2_ctx.beginPath(); //
+        cv2_ctx.moveTo(cv2.width / 4, 0 + padding - trackWidth_2 / 2);
+        cv2_ctx.lineTo(cv2.width / 4, cv2.height / 2 + trackWidth_2 / 2);
+        cv2_ctx.stroke();
+        cv2_ctx.beginPath(); //
+        cv2_ctx.moveTo(cv2.width / 4 - trackWidth_2 / 2, 0 + padding);
+        cv2_ctx.lineTo(cv2.width / 4 * 3, 0 + padding);
+        cv2_ctx.stroke();
+        cv2_ctx.beginPath(); //
+        cv2_ctx.moveTo(cv2.width / 2, 0 + padding - trackWidth_2 / 2);
+        cv2_ctx.lineTo(cv2.width / 2, cv2.height - padding + trackWidth_2 / 2);
+        cv2_ctx.stroke();
+        cv2_ctx.beginPath(); //
+        cv2_ctx.moveTo(cv2.width / 2, cv2.height / 2 - trackWidth_2 / 2);
+        cv2_ctx.lineTo(cv2.width / 2, cv2.height - padding + trackWidth_2 / 2);
+        cv2_ctx.stroke();
+        cv2_ctx.beginPath(); //
+        cv2_ctx.moveTo(cv2.width - padding, cv2.height / 2 - trackWidth_2 / 2);
+        cv2_ctx.lineTo(cv2.width - padding, cv2.height - padding + trackWidth_2 / 2);
+        cv2_ctx.stroke();
+        cv2_ctx.beginPath(); //
+        cv2_ctx.moveTo(cv2.width / 4 * 3, cv2.height / 2 - trackWidth_2 / 2);
+        cv2_ctx.lineTo(cv2.width / 4 * 3, cv2.height - padding + trackWidth_2 / 2);
+        cv2_ctx.stroke();
+        cv2_ctx.beginPath(); //
+        cv2_ctx.moveTo(0 + padding, cv2.height / 2);
+        cv2_ctx.lineTo(cv2.width / 4, cv2.height / 2);
+        cv2_ctx.stroke();
+        cv2_ctx.beginPath(); //
+        cv2_ctx.moveTo(cv2.width / 2, cv2.height - padding);
+        cv2_ctx.lineTo(cv2.width / 4 * 3, cv2.height - padding);
+        cv2_ctx.stroke();
+        cv2_ctx.beginPath(); //
+        cv2_ctx.moveTo(cv2.width / 4 * 3, cv2.height / 2);
+        cv2_ctx.lineTo(cv2.width - padding, cv2.height / 2);
+        cv2_ctx.stroke();
+      }
+      drawCheckpoint(cv2, cv2_ctx, checkpoint_size);
+      // canvas 3 (藍色軌道)
+      cv3_ctx.clearRect(0, 0, cv3.width, cv3.height);
+      {
+        // 畫出底圖的軌道
+        cv3_ctx.lineWidth = trackWidth_1;
+        cv3_ctx.strokeStyle = '#AAAAAA';
+        cv3_ctx.beginPath(); // 上
+        cv3_ctx.moveTo(0 + padding, 0 + padding);
+        cv3_ctx.lineTo(cv3.width - padding, 0 + padding);
+        cv3_ctx.stroke();
+        cv3_ctx.beginPath(); // 中
+        cv3_ctx.moveTo(0 + padding, cv3.height / 2);
+        cv3_ctx.lineTo(cv3.width - padding, cv3.height / 2);
+        cv3_ctx.stroke();
+        cv3_ctx.beginPath(); // 下
+        cv3_ctx.moveTo(0 + padding, cv3.height - padding);
+        cv3_ctx.lineTo(cv3.width - padding, cv3.height - padding);
+        cv3_ctx.stroke();
+        cv3_ctx.beginPath(); // 左
+        cv3_ctx.moveTo(0 + padding, 0 + padding - trackWidth_1 / 2);
+        cv3_ctx.lineTo(0 + padding, cv3.height - padding + trackWidth_1 / 2);
+        cv3_ctx.stroke();
+        cv3_ctx.beginPath(); // 中1
+        cv3_ctx.moveTo(cv3.width / 4, 0 + padding - trackWidth_1 / 2);
+        cv3_ctx.lineTo(cv3.width / 4, cv3.height - padding + trackWidth_1 / 2);
+        cv3_ctx.stroke();
+        cv3_ctx.beginPath(); // 中2
+        cv3_ctx.moveTo(cv3.width / 2, 0 + padding - trackWidth_1 / 2);
+        cv3_ctx.lineTo(cv3.width / 2, cv3.height - padding + trackWidth_1 / 2);
+        cv3_ctx.stroke();
+        cv3_ctx.beginPath(); // 中3
+        cv3_ctx.moveTo(cv3.width / 4 * 3, 0 + padding - trackWidth_1 / 2);
+        cv3_ctx.lineTo(cv3.width / 4 * 3, cv3.height - padding + trackWidth_1 / 2);
+        cv3_ctx.stroke();
+        cv3_ctx.beginPath(); // 右
+        cv3_ctx.moveTo(cv3.width - padding, 0 + padding - trackWidth_1 / 2);
+        cv3_ctx.lineTo(cv3.width - padding, cv3.height - padding + trackWidth_1 / 2);
+        cv3_ctx.stroke();
+
+        // 畫出顏色的軌道
+        cv3_ctx.lineWidth = trackWidth_2;
+        cv3_ctx.strokeStyle = '#0000FF';
+        cv3_ctx.beginPath(); // 中1
+        cv3_ctx.moveTo(0 + padding, 0 + padding - trackWidth_2 / 2);
+        cv3_ctx.lineTo(0 + padding, cv3.height - padding + trackWidth_2 / 2);
+        cv3_ctx.stroke();
+        cv3_ctx.beginPath(); //
+        cv3_ctx.moveTo(cv3.width / 4, cv3.height / 2);
+        cv3_ctx.lineTo(cv3.width / 4 * 3, cv3.height / 2);
+        cv3_ctx.stroke();
+        cv3_ctx.beginPath(); //
+        cv3_ctx.moveTo(cv3.width / 2, 0 + padding - trackWidth_2 / 2);
+        cv3_ctx.lineTo(cv3.width / 2, cv3.height - padding + trackWidth_2 / 2);
+        cv3_ctx.stroke();
+        cv3_ctx.beginPath(); //
+        cv3_ctx.moveTo(cv3.width / 4 * 3, 0 + padding - trackWidth_2 / 2);
+        cv3_ctx.lineTo(cv3.width / 4 * 3, cv3.height / 2);
+        cv3_ctx.stroke();
+        cv3_ctx.beginPath(); //
+        cv3_ctx.moveTo(cv3.width - padding, 0 + padding - trackWidth_2 / 2);
+        cv3_ctx.lineTo(cv3.width - padding, cv3.height - padding + trackWidth_2 / 2);
+        cv3_ctx.stroke();
+        cv3_ctx.beginPath(); //
+        cv3_ctx.moveTo(cv3.width / 2, 0 + padding);
+        cv3_ctx.lineTo(cv3.width - padding, 0 + padding);
+        cv3_ctx.stroke();
+        cv3_ctx.beginPath(); //
+        cv3_ctx.moveTo(cv3.width / 2, cv3.height - padding);
+        cv3_ctx.lineTo(cv3.width - padding, cv3.height - padding);
+        cv3_ctx.stroke();
+        cv3_ctx.beginPath(); //
+        cv3_ctx.moveTo(0 + padding, cv3.height - padding);
+        cv3_ctx.lineTo(cv3.width / 4 + trackWidth_2 / 2, cv3.height - padding);
+        cv3_ctx.stroke();
+        cv3_ctx.beginPath(); //
+        cv3_ctx.moveTo(cv3.width / 4, cv3.height / 2);
+        cv3_ctx.lineTo(cv3.width / 4, cv3.height - padding);
+        cv3_ctx.stroke();
+      }
+      drawCheckpoint(cv3, cv3_ctx, checkpoint_size);
+    }
+    drawMap()
+
+    cv1.addEventListener('click', (e) => {
+      var pos = getMousePos(cv1, e); // 取得滑鼠的座標
+      if (cv1.width / 4 - checkpoint_size <= pos.x && cv1.width / 4 + checkpoint_size >= pos.x &&
+        cv1.height / 2 - checkpoint_size <= pos.y && cv1.height / 2 + checkpoint_size >= pos.y) {
+        checkpoint = 1 // 設定中繼站編號
+      }
+      if (cv1.width / 2 - checkpoint_size <= pos.x && cv1.width / 2 + checkpoint_size >= pos.x &&
+        cv1.height / 2 - checkpoint_size <= pos.y && cv1.height / 2 + checkpoint_size >= pos.y) {
+        checkpoint = 2 // 設定中繼站編號
+      }
+      if (cv1.width / 4 * 3 - checkpoint_size <= pos.x && cv1.width / 4 * 3 + checkpoint_size >= pos.x &&
+        cv1.height / 2 - checkpoint_size <= pos.y && cv1.height / 2 + checkpoint_size >= pos.y) {
+        checkpoint = 3 // 設定中繼站編號
+      }
+      drawMap()
+    });
+    cv2.addEventListener('click', (e) => {
+      var pos = getMousePos(cv2, e); // 取得滑鼠的座標
+      if (cv2.width / 4 - checkpoint_size <= pos.x && cv2.width / 4 + checkpoint_size >= pos.x &&
+        cv2.height / 2 - checkpoint_size <= pos.y && cv2.height / 2 + checkpoint_size >= pos.y) {
+        checkpoint = 1 // 設定中繼站編號
+      }
+      if (cv2.width / 2 - checkpoint_size <= pos.x && cv2.width / 2 + checkpoint_size >= pos.x &&
+        cv2.height / 2 - checkpoint_size <= pos.y && cv2.height / 2 + checkpoint_size >= pos.y) {
+        checkpoint = 2 // 設定中繼站編號
+      }
+      if (cv2.width / 4 * 3 - checkpoint_size <= pos.x && cv2.width / 4 * 3 + checkpoint_size >= pos.x &&
+        cv2.height / 2 - checkpoint_size <= pos.y && cv2.height / 2 + checkpoint_size >= pos.y) {
+        checkpoint = 3 // 設定中繼站編號
+      }
+      drawMap()
+    });
+    cv3.addEventListener('click', (e) => {
+      var pos = getMousePos(cv3, e); // 取得滑鼠的座標
+      if (cv3.width / 4 - checkpoint_size <= pos.x && cv3.width / 4 + checkpoint_size >= pos.x &&
+        cv3.height / 2 - checkpoint_size <= pos.y && cv3.height / 2 + checkpoint_size >= pos.y) {
+        checkpoint = 1 // 設定中繼站編號
+      }
+      if (cv3.width / 2 - checkpoint_size <= pos.x && cv3.width / 2 + checkpoint_size >= pos.x &&
+        cv3.height / 2 - checkpoint_size <= pos.y && cv3.height / 2 + checkpoint_size >= pos.y) {
+        checkpoint = 2 // 設定中繼站編號
+      }
+      if (cv3.width / 4 * 3 - checkpoint_size <= pos.x && cv3.width / 4 * 3 + checkpoint_size >= pos.x &&
+        cv3.height / 2 - checkpoint_size <= pos.y && cv3.height / 2 + checkpoint_size >= pos.y) {
+        checkpoint = 3 // 設定中繼站編號
+      }
+      drawMap()
+    });
+
+    $("#go_btn").click(function () {
+      $.ajax({
+        crossDomain: true,
+        url: GetURL() + '/reset',
+        method: "GET",
+        cache: false,
+        success: function (response) {
+
+          track = $(".active.nav-link").attr("id"); // {R, G, B}
+          // alert(track + checkpoint);
+          var path = "";
+          if (track == 'R') {
+            if (checkpoint == 1) {
+              path = "FRFBFRFFRFLFRF"
+            } else if (checkpoint == 2) {
+              path = "FRFLFBFRFRFFRFLFRF"
+            } else if (checkpoint == 3) {
+              path = "FFFRFLFRF"
+            }
+          }
+          else if (track == 'G') {
+            if (checkpoint == 1) {
+              path = "RFLFLFRFRFFLFLFRFRF"
+            } else if (checkpoint == 2) {
+              path = "RFLFLFRFRFFLFLFRFRF"
+            } else if (checkpoint == 3) {
+              path = "RFLFLFRFRFFLFLFRFRF"
+            }
+          }
+          else if (track == 'B') {
+            if (checkpoint == 1) {
+              path = "RFFLFLFRFRFLFF"
+            } else if (checkpoint == 2) {
+              path = "RFFLFLFRFRFLFF"
+            } else if (checkpoint == 3) {
+              path = "RFFLFLFRFFLFRFRFF"
+            }
+          }
+
+          $.ajax({
+            url: GetURL() + '/map',
+            method: "POST",
+            data: path,
+            contentType: "application/json",
+            crossDomain: true,
+            cache: false,
+            success: function (response) {
+              console.log(response)
+            },
+            error: function () {
+            }
+          });
+          
+        },
+        error: function () {
+        }
+      });
+    });
+
+    var car_color_switch = 0;
+    var car_update_interval = 800;
+    function DrawCar() {
+      $.ajax({
+        crossDomain: true,
+        url: GetURL() + '/location',
+        method: "GET",
+        cache: false,
+        success: function (response) {
+          console.log(response) // (x, y)
+
+          drawMap()
+
+          track = $(".active.nav-link").attr("id"); // {R, G, B}
+          if (track == 'R') {
+            pos_x = cv1.width / 4 * response.X
+            pos_y = cv1.height / 2 * response.Y
+            if (response.X == 0)
+              pos_x += padding;
+            if (response.X == 4)
+              pos_x -= padding;
+            if (response.Y == 0)
+              pos_y += padding;
+            if (response.Y == 2)
+              pos_y -= padding;
+
+            cv1_ctx.beginPath();
+            cv1_ctx.arc(pos_x, pos_y, 20, 0, 2 * Math.PI, true); // x, y, r, startAngle, endAngle, clockwise
+
+            if (car_color_switch == 0) {
+              cv1_ctx.fillStyle = "#B7770D";
+              car_color_switch = 1;
+            } else {
+              cv1_ctx.fillStyle = "#F7BC5B";
+              car_color_switch = 0;
+            }
+            cv1_ctx.fill();
+          }
+          else if (track == 'G') {
+            pos_x = cv2.width / 4 * response.X
+            pos_y = cv2.height / 2 * response.Y
+            if (response.X == 0)
+              pos_x += padding;
+            if (response.X == 4)
+              pos_x -= padding;
+            if (response.Y == 0)
+              pos_y += padding;
+            if (response.Y == 2)
+              pos_y -= padding;
+
+            cv2_ctx.beginPath();
+            cv2_ctx.arc(pos_x, pos_y, 20, 0, 2 * Math.PI, true); // x, y, r, startAngle, endAngle, clockwise
+
+            if (car_color_switch == 0) {
+              cv2_ctx.fillStyle = "#B7770D";
+              car_color_switch = 1;
+            } else {
+              cv2_ctx.fillStyle = "#F7BC5B";
+              car_color_switch = 0;
+            }
+            cv2_ctx.fill();
+          }
+          else if (track == 'B') {
+            pos_x = cv3.width / 4 * response.X
+            pos_y = cv3.height / 2 * response.Y
+            if (response.X == 0)
+              pos_x += padding;
+            if (response.X == 4)
+              pos_x -= padding;
+            if (response.Y == 0)
+              pos_y += padding;
+            if (response.Y == 2)
+              pos_y -= padding;
+
+            cv3_ctx.beginPath();
+            cv3_ctx.arc(pos_x, pos_y, 20, 0, 2 * Math.PI, true); // x, y, r, startAngle, endAngle, clockwise
+
+            if (car_color_switch == 0) {
+              cv3_ctx.fillStyle = "#B7770D";
+              car_color_switch = 1;
+            } else {
+              cv3_ctx.fillStyle = "#F7BC5B";
+              car_color_switch = 0;
+            }
+            cv3_ctx.fill();
+          }
+
+          setTimeout(DrawCar, car_update_interval);
+        },
+        error: function () {
+          setTimeout(DrawCar, car_update_interval);
+        }
+      });
+    }
+    $(document).ready(function () {
+      setTimeout(DrawCar, car_update_interval);
+    });
+
+    // 192.168.50.129
+  </script>
+
+</body>
+
+</html>
